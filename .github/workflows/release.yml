@@ -61,7 +61,7 @@ jobs:
           cp libUniGlyph.* "$dir/"
           cp LICENSE NOTICE "$dir/" 2>/dev/null || cp LICENSE "$dir/"
           tar czf "$dir.tar.gz" "$dir"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: cabi-${{ matrix.os }}
           path: '*.tar.gz'
@@ -102,7 +102,7 @@ jobs:
             macOS)   pip install delocate   && delocate-wheel py/dist/*.whl -w dist/ ;;
             Windows) pip install delvewheel && delvewheel repair py/dist/*.whl -w dist/ ;;
           esac
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: wheel-${{ matrix.os }}
           path: dist/*.whl
