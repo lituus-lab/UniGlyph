@@ -66,6 +66,9 @@ task testAll, "debug + release + C ABI":
 task example, "Nim demo (print-only; no file I/O)":
   exec "nim c -r --path:src -o:build/demo examples/demo.nim"
 
+task uniglyph, "Build the uniglyph CLI (render text to PNG + SVG)":
+  exec "nim c --path:src -o:bin/uniglyph bin/uniglyph_cli.nim"
+
 # Nim takes `-o:` literally and appends no platform extension.
 const
   sharedLib =
