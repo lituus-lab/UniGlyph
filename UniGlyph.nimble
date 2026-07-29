@@ -31,17 +31,32 @@ task docs, "API reference + book into pages/ — what CI publishes":
   # The book is the landing page; the generated reference sits under api/.
   cpFile "book/index.html", "pages/index.html"
 
+# One entry per Nim test so every task (test, testRelease, testCi*,
+# coverage) compiles the same set from a single source of truth.
+const testBins = [
+  ("test_version", "test_version"),
+  ("test_tables", "test_tables"),
+  ("test_font", "test_font"),
+  ("test_glyph", "test_glyph"),
+  ("test_layout", "test_layout"),
+  ("test_render", "test_render"),
+]
+
 task test, "Nim tests (debug, contracts active)":
-  exec "nim c -r --path:src -o:build/test_version tests/test_version.nim"
+  for (name, src) in testBins:
+    exec "nim c -r --path:src -o:build/" & name & " tests/" & src & ".nim"
 
 task testRelease, "Nim tests (release, contracts compiled away)":
-  exec "nim c -r -d:release --path:src -o:build/test_version_rel tests/test_version.nim"
+  for (name, src) in testBins:
+    exec "nim c -r -d:release --path:src -o:build/" & name & "_rel tests/" & src & ".nim"
 
 task testCi, "Nim tests (CI subset, debug)":
-  exec "nim c -r --path:src -o:build/test_version tests/test_version.nim"
+  for (name, src) in testBins:
+    exec "nim c -r --path:src -o:build/" & name & " tests/" & src & ".nim"
 
 task testCiRelease, "Nim tests (CI subset, release)":
-  exec "nim c -r -d:release --path:src -o:build/test_version_rel tests/test_version.nim"
+  for (name, src) in testBins:
+    exec "nim c -r -d:release --path:src -o:build/" & name & "_rel tests/" & src & ".nim"
 
 task testAll, "debug + release + C ABI":
   exec "nimble test"
@@ -142,7 +157,7 @@ task coverage, "LCOV + HTML coverage report for the Nim sources (needs lcov)":
   # lcov aborts on `cannot merge previous GCDA file: mismatched number of
   # counters`. `lcov --capture --directory build/covcache` recurses into the
   # subdirs, so aggregation is unchanged.
-  const bins = [("version", "test_version")]
+  const bins = testBins
   for (name, src) in bins:
     exec "nim c --path:src --nimcache:" & cache & "/" & name &
          " --debugger:native --passC:--coverage --passL:--coverage" &
