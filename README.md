@@ -25,6 +25,33 @@ ADRs/                       0001 DAG, 0002 license, 0003 engine&shell, 0004 conv
 .github/workflows/ci.yml    3-OS Nim matrix + C ABI + Python
 ```
 
+## Quickstart
+
+Render text to PNG + SVG with the CLI (bundles a 1 px padding inset):
+
+```bash
+nimble uniglyph
+./bin/uniglyph render --font tests/assets/DejaVuSans.ttf --text "Hello" \
+  --size 48 -o hello.png --svg hello.svg
+```
+
+Or from Nim, through UniVector + UniImage:
+
+```nim
+import UniGlyph, UniVector, UniColor
+import UniImage/core as uimg, UniImage/formats
+
+let font = loadTtf("tests/assets/DejaVuSans.ttf")
+let ts = font.typeset("Hello", 48'f32, vec2(1.0, float32(font.ascent) *
+  font.scaleFactor(48'f32) + 1.0))
+var img = uimg.newImage[uint8](int(ts.advance) + 2, int(font.lineHeight(48'f32)) + 2, uimg.csRgba)
+fillPath(img, ts.combinedPath, parseColor("#000000").get)
+writeFile("hello.png", cast[string](encodeImage(img, efPng, 90)))
+```
+
+A C consumer links `libUniGlyph.a` (+ `-lz` for UniImage's PNG/DEFLATE); a
+Python consumer uses `py/uniglyph/` (`render_text`, `Font`, `Image`, `Color`).
+
 ## Build
 
 ```bash
