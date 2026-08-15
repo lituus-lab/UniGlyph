@@ -1,0 +1,60 @@
+# build artifacts
+build/
+# bin/ holds the compiled CLI (uniglyph) plus its Nim source. Ignore the
+# binary output, track the source. git cannot re-include a file under an
+# ignored directory, so ignore `/bin/*` (not `/bin/`) then negate *.nim.
+/bin/*
+!/bin/*.nim
+libUniGlyph.so
+libUniGlyph.so.*
+libUniGlyph.dylib
+libUniGlyph.a
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.so.*
+*.dylib
+*.a
+*.lib
+
+# coverage
+coverage/
+lcov.info
+
+# nim cache
+nimcache/
+rnimcache/
+dnimcache/
+
+# docs output
+pages/
+docs/
+*.html
+nimdoc.out.css
+
+# python binding artifacts (sources tracked; generated + bundled lib not)
+py/uniglyph/_core.c
+py/uniglyph/*.so
+py/uniglyph/libUniGlyph.so
+py/dist/
+py/build/
+py/include/
+py/licenses/
+py/*.egg-info/
+py/**/__pycache__/
+py/.pytest_cache/
+
+# c test/example binaries
+tests/c/test_uniglyph
+examples/c/demo
+
+# os / editor
+.DS_Store
+*~
+.*.swp
+*.dSYM
+
+*.log
+*.core
