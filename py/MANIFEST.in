@@ -1,0 +1,9 @@
+include README.md
+include pyproject.toml
+include uniglyph/*.py
+include uniglyph/*.pyx
+include include/*.h
+include licenses/LICENSE
+include licenses/NOTICE
+exclude uniglyph/_core.c
+exclude uniglyph/libUniGlyph.*
