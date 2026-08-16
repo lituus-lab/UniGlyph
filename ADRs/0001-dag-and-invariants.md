@@ -20,6 +20,7 @@ UniGlyph --> UniVector
 UniGlyph --> UniImage
 UniGlyph --> UniColor
 UniGlyph --> UniLinalg
+UniGlyph --> UniCrypto
 ```
 
 UniPlot consumes UniGlyph. UniGlyph never imports UniPlot, UniGeom, an
@@ -35,7 +36,8 @@ data; upload and draw commands belong to the consuming renderer.
 5. `layout` consumes shaping and font metrics without owning image buffers.
 6. `render` adapts a completed layout to UniVector and UniImage.
 7. `c_api` may combine all public layers but contains no text algorithms.
-8. No module imports UniPlot or an application.
+8. `font` uses UniCrypto to identify the exact source bytes once at load time.
+9. No module imports UniPlot or an application.
 
 `nimble checkVGraph` enforces this order:
 

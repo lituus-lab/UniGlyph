@@ -22,9 +22,10 @@ nimble checkVGraph
 `nimble docs` needs a complete Nim distribution: `--project` builds `dochack`,
 which Homebrew's `nim` omits (no `tools/`). choosenim and the CI action ship it.
 
-Sibling engines (UniVector, UniImage, UniColor, UniLinalg, UniMath) are reached
-via `--path` in `config.nims` during family development and are also declared
-in `UniGlyph.nimble` so an isolated clone can install them normally.
+Sibling engines (UniVector, UniImage, UniColor, UniLinalg, UniCrypto, UniMath)
+are reached via `--path` in `config.nims` during family development and are
+also declared in `UniGlyph.nimble` so an isolated clone can install them
+normally.
 
 CI: Nim matrix (debug + release) + lint + vgraph + docs + coverage + cabi +
 wheels.
@@ -49,9 +50,9 @@ wheels.
   atlas/render < c_api`, enforced by `nimble checkVGraph`. Shaping and layout
   are renderer-neutral; vector, raster, and atlas adapters consume the same
   completed layout. The facade re-exports the core layers, not `c_api`.
-- UniGlyph depends on UniVector, UniImage, UniColor, and UniLinalg. UniPlot
-  consumes UniGlyph; UniGlyph never imports UniPlot, UniGeom, an app, or a GPU
-  API. GPU resource ownership stays in the consuming renderer.
+- UniGlyph depends on UniVector, UniImage, UniColor, UniLinalg, and UniCrypto.
+  UniPlot consumes UniGlyph; UniGlyph never imports UniPlot, UniGeom, an app,
+  or a GPU API. GPU resource ownership stays in the consuming renderer.
 - UniGlyph is an original implementation in the Uni* family idiom. The font
   parser is read-only and spec-driven against the OpenType/TrueType spec
   (ISO/IEC 14496-22 + the Microsoft OpenType spec); glyph outlines are emitted

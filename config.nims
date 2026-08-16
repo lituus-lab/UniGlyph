@@ -8,6 +8,7 @@ switch("path", "../UniVector/src")
 switch("path", "../UniImage/src")
 switch("path", "../UniColor/src")
 switch("path", "../UniLinalg/src")
+switch("path", "../UniCrypto/src")
 # Transitive: UniLinalg imports UniMath (RealField). Reached via --path, not a
 # direct engine dep of UniGlyph, so it stays out of vgraph [engines].
 switch("path", "../UniMath/src")

@@ -14,6 +14,7 @@ requires "https://github.com/lituus-lab/UniLinalg#main"
 requires "https://github.com/lituus-lab/UniColor#main"
 requires "https://github.com/lituus-lab/UniImage#main"
 requires "https://github.com/lituus-lab/UniVector#main"
+requires "https://github.com/lituus-lab/UniCrypto#main"
 
 task lint, "Fail if nimpretty would reformat a source":
   exec "nim c -r --hints:off -o:build/lint_tool tools/lint.nim"
