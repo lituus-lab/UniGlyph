@@ -31,3 +31,12 @@ of the access loop.
 The benchmark does not measure shaping, layout, rasterization, GPU work, C or
 Python marshalling, and makes no claim about those workloads. Record the JSON,
 hardware, power mode, compiler, command, and repetition count with any result.
+
+## Recorded reference
+
+[`results/apple-m4-font-identity-2026-08-16.json`](results/apple-m4-font-identity-2026-08-16.json)
+contains all five process-level means and their median for the bundled
+493,564-byte font on a 32 GiB Apple M4 Mac mini with Nim 2.2.10. Each process
+used 100 interleaved iterations and one million cached accesses after three
+warm-ups. It is a local regression reference, not a threshold or a claim about
+other hardware.

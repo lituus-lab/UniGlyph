@@ -1,0 +1,39 @@
+{
+  "schema": "uniglyph-font-identity-baseline-v1",
+  "recorded_utc_date": "2026-08-16",
+  "machine": {
+    "model": "Mac mini",
+    "model_identifier": "Mac16,10",
+    "chip": "Apple M4",
+    "memory_gib": 32,
+    "host_os": "macosx",
+    "host_cpu": "arm64"
+  },
+  "toolchain": {
+    "nim": "2.2.10",
+    "mode": "release"
+  },
+  "workload": {
+    "font": "tests/assets/DejaVuSans.ttf",
+    "font_bytes": 493564,
+    "processes": 5,
+    "warmups_per_process": 3,
+    "iterations_per_process": 100,
+    "cached_accesses_per_process": 1000000
+  },
+  "runs": {
+    "parse_mean_ns": [126955.01, 129670.46, 129269.56, 127393.34, 128204.17],
+    "load_with_identity_mean_ns": [343280.81, 347514.18, 345657.05, 342947.03, 343619.96],
+    "observed_load_minus_parse_mean_ns": [216325.8, 217843.72, 216387.49, 215553.69, 215415.79],
+    "hash_mean_ns": [214796.72, 217439.61, 216470.79, 216163.46, 215579.12],
+    "cached_identity_access_mean_ns": [1.242167, 1.289083, 1.285875, 1.301334, 1.278458]
+  },
+  "median": {
+    "parse_mean_ns": 128204.17,
+    "load_with_identity_mean_ns": 343619.96,
+    "observed_load_minus_parse_mean_ns": 216325.8,
+    "hash_mean_ns": 216163.46,
+    "cached_identity_access_mean_ns": 1.285875
+  },
+  "interpretation": "Local reference only; not a portable performance guarantee. The load-minus-parse difference is observed, not causal attribution."
+}
