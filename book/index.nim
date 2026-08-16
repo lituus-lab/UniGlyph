@@ -44,6 +44,21 @@ nbCode:
   echo "lineHeight @48px ", font.lineHeight(48'f32)
 
 nbText: """
+## Identify exact font content
+
+`fontIdentity` is the complete BLAKE3-256 digest of the bytes supplied to the
+loader. UniGlyph computes it once while loading and returns the retained value
+thereafter. Loading the same bytes by path or from memory gives the same key,
+which lets UniPlot identify prepared text resources without relying on a path,
+font name, or process-local pointer.
+"""
+
+nbCode:
+  let identity = font.fontIdentity
+  echo "identity bytes ", identity.len
+  echo "identity hex characters ", font.fontIdentityHex.len
+
+nbText: """
 ## Resolve a codepoint to a glyph path
 
 `glyphPath` walks `cmap` (format 4 or 12) -> glyph id -> `glyf` contour and
@@ -147,6 +162,8 @@ The `ugly_*` C ABI (`include/UniGlyph.h`) and the Cython binding
 (`py/uniglyph/`) expose fonts and fallback families, retained layouts, glyph
 metadata, bounds, raster rendering, atlases, and PNG encoding. The ABI never
 raises across C; it maps failures to `UGLY_*` status values or NULL handles.
+`ugly_font_identity` copies 32 bytes into caller-owned storage; Python exposes
+the same value as `Font.identity` and its lowercase form as `identity_hex`.
 
 ## References
 

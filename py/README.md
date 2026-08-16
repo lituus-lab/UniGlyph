@@ -39,6 +39,8 @@ open("hello.png", "wb").write(img.encode_png())
 font.ascent            # design units
 font.line_height(48.0) # scaled line height
 font.text_width("Hello", 48.0)
+font.identity           # 32-byte BLAKE3 identity of the exact source bytes
+font.identity_hex       # the same identity as 64 lowercase hex characters
 
 family = uniglyph.FontFamily(font)
 layout = uniglyph.Layout(family, "Axis title\nmeasurement", 32.0,
@@ -52,8 +54,8 @@ atlas.entries()
 
 ## API
 
-- `Font(path)` — load and parse a TrueType font; metrics, glyph lookup,
-  advances, kerning, line height, and text width.
+- `Font(path)` — load and parse a TrueType font; exact content identity,
+  metrics, glyph lookup, advances, kerning, line height, and text width.
 - `FontFamily(first, *fallback)` — retain an ordered fallback family.
 - `Layout(source, text, size, ...)` — `Direction`, wrapping, `Align`, spacing,
   bounds, glyph placements, and retained raster rendering.

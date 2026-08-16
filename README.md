@@ -15,7 +15,8 @@ plot layout and interaction.
 ## What's inside now
 
 - `src/UniGlyph/tables`: bounds-checked OpenType/TrueType table parsing.
-- `src/UniGlyph/font`: immutable font faces and exact design-unit metrics.
+- `src/UniGlyph/font`: immutable font faces, exact metrics, and stable
+  source-content identities.
 - `src/UniGlyph/glyph`: glyph outlines represented as UniVector paths.
 - `src/UniGlyph/shaping.nim`: nominal mapping, ordered fallback, direction,
   stable clusters, spacing, and legacy pair kerning.
@@ -113,10 +114,15 @@ atlas construction to the same ABI. Python code provides ownership and Python
 value conversion only. The deliberate foreign-interface boundaries are listed
 in [`ADRs/0006-foreign-interface-surface.md`](ADRs/0006-foreign-interface-surface.md).
 
+Nim `fontIdentity`, C `ugly_font_identity`, and Python `Font.identity` expose
+the same BLAKE3-256 value computed once from the complete source font bytes.
+It is suitable for retained-scene and resource-cache keys; it is not a font
+family name, parser-version identifier, or authenticity proof.
+
 ## The Uni* family
 
-UniGlyph is above UniVector, UniImage, UniColor, and UniLinalg, and below
-UniPlot. Domain engines may depend on UniPlot through optional adapters;
+UniGlyph is above UniVector, UniImage, UniColor, UniLinalg, and UniCrypto, and
+below UniPlot. Domain engines may depend on UniPlot through optional adapters;
 UniGlyph never depends on a domain engine. The family purpose and conventions
 are documented in the
 [`lituus-lab` organization profile](https://github.com/lituus-lab/.github).
@@ -136,10 +142,12 @@ signs off every contribution under the DCO.
 
 ## Benchmarks
 
-A future benchmark suite will separate parsing, nominal shaping, layout, path
-construction, rasterization, and Python marshalling while recording its machine
-and input corpus. No performance claim or benchmark number is published in
-1.0.0 because that reproducible suite is not yet part of the repository.
+`nimble benchmarkIdentity` produces a machine-readable report separating raw
+TrueType parsing, public loading with the one-time identity calculation,
+BLAKE3 hashing alone, and cached identity access. Its protocol, limitations,
+and argument form are documented in
+[`benchmarks/README.md`](benchmarks/README.md). It makes no shaping, layout,
+rasterization, GPU, or foreign-binding performance claim.
 
 ## AI-assisted contributions
 
