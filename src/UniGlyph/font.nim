@@ -7,14 +7,19 @@
 ## `hhea` + `head`, per-glyph advance widths from `hmtx`.
 import std/math
 import contracts
+import UniCrypto/hash/blake3/blake3 as ublake3
 import UniGlyph/common
 import UniGlyph/tables
 
 type
+  FontIdentity* = array[32, byte]
+    ## Stable identity of the exact source bytes used to load a font.
+
   Font* = ref object
     ## A loaded TrueType font. Holds the parsed tables; outlines and metrics
     ## are read on demand.
     t: Tables
+    identity: FontIdentity
 
 proc readBytes(path: string): seq[byte] =
   let s = readFile(path)
@@ -22,20 +27,45 @@ proc readBytes(path: string): seq[byte] =
   if s.len > 0:
     copyMem(result[0].addr, s[0].unsafeAddr, s.len)
 
+proc identify(data: openArray[byte]): FontIdentity =
+  ublake3.blake3(data)
+
+proc identityHex(identity: FontIdentity): string =
+  ublake3.toHex(identity)
+
 proc loadTtf*(path: string): Font {.contractual.} =
   ## Read and parse a TrueType font file. Raises `FontError` on a malformed or
   ## unsupported file.
   require:
     path.len > 0
   body:
-    Font(t: parseTables(readBytes(path)))
+    let data = readBytes(path)
+    Font(t: parseTables(data), identity: identify(data))
 
 proc loadTtfFromBytes*(data: seq[byte]): Font {.contractual.} =
   ## Parse a font already held in memory (used by tests and the C ABI).
   require:
     data.len > 0
   body:
-    Font(t: parseTables(data))
+    Font(t: parseTables(data), identity: identify(data))
+
+proc fontIdentity*(f: Font): FontIdentity {.contractual.} =
+  ## Return the BLAKE3-256 identity computed from the complete source bytes at
+  ## load time. The returned value is a copy and remains valid for the lifetime
+  ## of the process, independently of the source path or input buffer.
+  require:
+    not f.isNil
+  body:
+    f.identity
+
+proc fontIdentityHex*(f: Font): string {.contractual.} =
+  ## Return `fontIdentity` as 64 lowercase hexadecimal characters.
+  require:
+    not f.isNil
+  ensure:
+    result.len == 64
+  body:
+    identityHex(f.identity)
 
 proc unitsPerEm*(f: Font): int {.contractual.} =
   require:
