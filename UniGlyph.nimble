@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 lituus-lab
 # UniGlyph — glyph/text engine for the lituus-lab Uni* family.
-
 version       = "1.0.0"
 author        = "lituus-lab"
 description   = "Glyph/text engine for the lituus-lab Uni* family (Nim + C-ABI + Python)"
@@ -78,6 +77,10 @@ task testAll, "debug + release + C ABI":
 
 task example, "Nim demo (print-only; no file I/O)":
   exec "nim c -r --path:src -o:build/demo examples/demo.nim"
+
+task benchmarkIdentity, "Benchmark font parsing and cached content identity":
+  exec "nim c -r -d:release --path:src -o:build/benchmark_font_identity" &
+       " benchmarks/benchmark_font_identity.nim"
 
 task uniglyph, "Build the uniglyph CLI (render text to PNG + SVG)":
   exec "nim c --path:src -o:bin/uniglyph bin/uniglyph_cli.nim"
