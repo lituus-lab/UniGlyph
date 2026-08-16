@@ -22,6 +22,7 @@ extern "C" {
     UNIGLYPH_VERSION_PATCH >= (pa)))
 
 #define UNIGLYPH_ABI_VERSION 1
+#define UGLY_FONT_IDENTITY_SIZE 32
 
 #define UGLY_CAP_NOMINAL_MAPPING       (1u << 0)
 #define UGLY_CAP_PAIR_KERNING          (1u << 1)
@@ -119,6 +120,12 @@ uint32_t ugly_font_glyph_id(ugly_font *f, uint32_t codepoint);
 int ugly_font_has_glyph(ugly_font *f, uint32_t codepoint);
 uint32_t ugly_font_advance(ugly_font *f, uint32_t glyph);
 int ugly_font_kerning(ugly_font *f, uint32_t left, uint32_t right);
+
+/* Copy the BLAKE3-256 identity of the exact source bytes into caller-owned
+ * storage. out_identity must point to at least UGLY_FONT_IDENTITY_SIZE
+ * writable bytes. Returns UGLY_ERR_FORMAT if either argument is NULL. */
+int ugly_font_identity(ugly_font *f,
+                       uint8_t out_identity[UGLY_FONT_IDENTITY_SIZE]);
 
 /* Scaled line height (ascent - descent + lineGap) at `size` px. */
 float ugly_font_line_height(ugly_font *f, float size);

@@ -199,6 +199,16 @@ proc ugly_font_kerning(h: pointer; left, right: uint32): cint =
   if h == nil: return 0
   cint(fontOf(h).f.kerning(GlyphId(left), GlyphId(right)))
 
+proc ugly_font_identity(h: pointer; outIdentity: ptr uint8): cint =
+  ## Copy the stable source-content identity into caller-owned storage.
+  if h == nil or outIdentity == nil: return UGLY_ERR_FORMAT
+  try:
+    let identity = fontOf(h).f.fontIdentity
+    copyMem(outIdentity, unsafeAddr identity[0], identity.len)
+    UGLY_OK
+  except CatchableError, Defect:
+    UGLY_ERR_FORMAT
+
 proc ugly_font_line_height(h: pointer; size: float32): float32 =
   ## Scaled line height (ascent - descent + lineGap) at `size` px.
   if h == nil: return 0'f32

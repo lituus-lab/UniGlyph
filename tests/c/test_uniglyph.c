@@ -46,6 +46,22 @@ int main(void) {
   check_true("font_advance", ugly_font_advance(f, glyph_a) > 0);
   check_true("font_kerning", ugly_font_kerning(f, glyph_a, glyph_v) < 0);
   check_true("font_line_height>0", ugly_font_line_height(f, 48.0f) > 0.0f);
+  uint8_t identity[UGLY_FONT_IDENTITY_SIZE] = {0};
+  uint8_t identity_again[UGLY_FONT_IDENTITY_SIZE] = {0};
+  check_int("font_identity", ugly_font_identity(f, identity), UGLY_OK);
+  check_int("font_identity stable",
+            ugly_font_identity(f, identity_again), UGLY_OK);
+  int identity_nonzero = 0;
+  for (size_t i = 0; i < sizeof(identity); i++) {
+    identity_nonzero |= identity[i] != 0;
+  }
+  check_true("font_identity nonzero", identity_nonzero);
+  check_true("font_identity repeat",
+             memcmp(identity, identity_again, sizeof(identity)) == 0);
+  check_int("font_identity nil font",
+            ugly_font_identity(NULL, identity), UGLY_ERR_FORMAT);
+  check_int("font_identity nil output",
+            ugly_font_identity(f, NULL), UGLY_ERR_FORMAT);
   check_true("text_width>0", ugly_text_width(f, "Hello", 48.0f) > 0.0f);
   check_true("nil font -> width 0", ugly_text_width(NULL, "Hello", 48.0f) == 0.0f);
 

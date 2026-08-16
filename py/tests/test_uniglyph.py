@@ -40,6 +40,11 @@ def test_font_load_and_metrics():
     assert f.kerning(a, v) < 0
     assert f.line_height(48.0) > 0.0
     assert f.text_width("Hello", 48.0) > 0.0
+    assert isinstance(f.identity, bytes)
+    assert len(f.identity) == 32
+    assert len(f.identity_hex) == 64
+    assert f.identity_hex == f.identity.hex()
+    assert uniglyph.Font(FONT).identity == f.identity
 
 
 def test_font_load_missing():

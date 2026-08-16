@@ -3,7 +3,7 @@
 # Copyright 2026 lituus-lab
 """Cython binding over the UniGlyph C ABI (glyph/text engine)."""
 from libc.stddef cimport size_t
-from libc.stdint cimport uint32_t
+from libc.stdint cimport uint8_t, uint32_t
 from libc.stdlib cimport free, malloc
 
 
@@ -71,6 +71,7 @@ cdef extern from "UniGlyph.h":
     int   ugly_font_has_glyph(ugly_font *f, uint32_t codepoint)
     uint32_t ugly_font_advance(ugly_font *f, uint32_t glyph)
     int   ugly_font_kerning(ugly_font *f, uint32_t left, uint32_t right)
+    int   ugly_font_identity(ugly_font *f, uint8_t *out_identity)
     float ugly_font_line_height(ugly_font *f, float size)
     void  ugly_font_free(ugly_font *f)
     ugly_family *ugly_family_new(ugly_font *font)
@@ -230,6 +231,18 @@ cdef class Font:
 
     def line_height(self, float size):
         return ugly_font_line_height(self._h, size)
+
+    @property
+    def identity(self):
+        """BLAKE3-256 identity of the exact source font bytes."""
+        cdef uint8_t digest[32]
+        if ugly_font_identity(self._h, digest) != 0:
+            raise ValueError("failed to read font identity")
+        return (<char *>digest)[:32]
+
+    @property
+    def identity_hex(self):
+        return self.identity.hex()
 
     def text_width(self, str text, float size):
         cdef bytes b = text.encode("utf-8")
