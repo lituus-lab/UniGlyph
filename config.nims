@@ -6,6 +6,8 @@
 switch("path", "src")
 switch("path", "../UniVector/src")
 switch("path", "../UniImage/src")
+switch("path", "../UniCompress/src")
+switch("path", "../UniChecksum/src")
 switch("path", "../UniColor/src")
 switch("path", "../UniLinalg/src")
 switch("path", "../UniCrypto/src")
