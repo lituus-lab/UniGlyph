@@ -117,29 +117,76 @@ template swallowAbiFaults(body: untyped) =
 var nimMainCalled: bool
 
 # Unmangled C symbols, C calling convention, exported from the shared lib.
+
+# A shared library runs NimMain from DllMain (Windows) or an ELF constructor;
+# a static one has neither, so nothing initializes the Nim runtime. The first
+# entry point then enters Nim code whose globals were never set up and the
+# process faults. The static-library tasks pass -d:staticNoAutoInit; shared
+# builds must not, or NimMain runs twice.
+when defined(staticNoAutoInit):
+  # A once primitive, not a plain flag: two threads reaching an entry point
+  # together would both see the flag unset, both call NimMain, and the second
+  # would enter Nim code the first had not finished initializing. The platform
+  # primitives block the losers until the winner returns, which a flag cannot.
+  #
+  # C statics, not Nim globals: module initialization would reset a Nim one and
+  # NimMain would run again. NimMain is declared here too — the generated
+  # prototype comes after this section.
+  {.emit: """/*VARSECTION*/
+void NimMain(void);
+#ifdef _WIN32
+#  include <windows.h>
+static INIT_ONCE ugly_runtime_once = INIT_ONCE_STATIC_INIT;
+static BOOL CALLBACK ugly_runtime_init(PINIT_ONCE o, PVOID p, PVOID *c) {
+  (void)o; (void)p; (void)c; NimMain(); return TRUE;
+}
+static void ugly_runtime_ensure(void) {
+  InitOnceExecuteOnce(&ugly_runtime_once, ugly_runtime_init, NULL, NULL);
+}
+#else
+#  include <pthread.h>
+static pthread_once_t ugly_runtime_once = PTHREAD_ONCE_INIT;
+static void ugly_runtime_init(void) { NimMain(); }
+static void ugly_runtime_ensure(void) {
+  pthread_once(&ugly_runtime_once, ugly_runtime_init);
+}
+#endif
+""".}
+  template ensureRuntime() =
+    {.emit: "  ugly_runtime_ensure();".}
+else:
+  template ensureRuntime() = discard
+
+
 {.push exportc, cdecl, dynlib.}
 
 proc ugly_init(): cint =
   ## Idempotent NimMain bootstrap. Call once before any other ugly_* entry.
   ## Never raises.
+  ensureRuntime()
   if not nimMainCalled:
     try: NimMain()
     except CatchableError, Defect: discard
     nimMainCalled = true
   UGLY_OK
 
-proc ugly_abi_version(): cint = cint(UniGlyphAbiVersion)
+proc ugly_abi_version(): cint =
+  ensureRuntime()
+  cint(UniGlyphAbiVersion)
 
 proc ugly_capabilities(): uint32 =
+  ensureRuntime()
   for capability in UniGlyphCapabilities:
     result = result or (1'u32 shl ord(capability))
 
 proc ugly_version(): cstring =
   ## Static engine version string; do not free. Never raises.
+  ensureRuntime()
   cstring(UniGlyphVersion)
 
 proc ugly_strerror(code: cint): cstring =
   ## Static message for an ugly_* status code.
+  ensureRuntime()
   case code
   of UGLY_OK: cstring"ok"
   of UGLY_ERR_FORMAT: cstring"bad argument / nil handle / unparseable font / bad color"
@@ -152,6 +199,7 @@ proc ugly_strerror(code: cint): cstring =
 proc ugly_font_load(path: cstring): pointer =
   ## Load and parse a TrueType font file. NULL on a nil path, missing file, or
   ## malformed font. Never raises (FontError is trapped).
+  ensureRuntime()
   if path == nil: return nil
   try:
     let f = loadTtf($path)
@@ -163,44 +211,54 @@ proc ugly_font_load(path: cstring): pointer =
 
 proc ugly_font_ascent(h: pointer): cint =
   ## Font ascent in design units (0 on a nil handle).
+  ensureRuntime()
   if h == nil: return 0
   cint(fontOf(h).f.ascent)
 
 proc ugly_font_descent(h: pointer): cint =
   ## Font descent in design units (0 on a nil handle).
+  ensureRuntime()
   if h == nil: return 0
   cint(fontOf(h).f.descent)
 
 proc ugly_font_units_per_em(h: pointer): cint =
+  ensureRuntime()
   if h == nil: return 0
   cint(fontOf(h).f.unitsPerEm)
 
 proc ugly_font_line_gap(h: pointer): cint =
+  ensureRuntime()
   if h == nil: return 0
   cint(fontOf(h).f.lineGap)
 
 proc ugly_font_num_glyphs(h: pointer): cint =
+  ensureRuntime()
   if h == nil: return 0
   cint(fontOf(h).f.numGlyphs)
 
 proc ugly_font_glyph_id(h: pointer; codepoint: uint32): uint32 =
+  ensureRuntime()
   if h == nil or codepoint > 0x10FFFF'u32: return 0
   uint32(fontOf(h).f.glyphId(int(codepoint)))
 
 proc ugly_font_has_glyph(h: pointer; codepoint: uint32): cint =
+  ensureRuntime()
   if h == nil or codepoint > 0x10FFFF'u32: return 0
   cint(fontOf(h).f.hasGlyph(int(codepoint)))
 
 proc ugly_font_advance(h: pointer; glyph: uint32): uint32 =
+  ensureRuntime()
   if h == nil: return 0
   uint32(fontOf(h).f.advanceWidth(GlyphId(glyph)))
 
 proc ugly_font_kerning(h: pointer; left, right: uint32): cint =
+  ensureRuntime()
   if h == nil: return 0
   cint(fontOf(h).f.kerning(GlyphId(left), GlyphId(right)))
 
 proc ugly_font_identity(h: pointer; outIdentity: ptr uint8): cint =
   ## Copy the stable source-content identity into caller-owned storage.
+  ensureRuntime()
   if h == nil or outIdentity == nil: return UGLY_ERR_FORMAT
   try:
     let identity = fontOf(h).f.fontIdentity
@@ -211,15 +269,18 @@ proc ugly_font_identity(h: pointer; outIdentity: ptr uint8): cint =
 
 proc ugly_font_line_height(h: pointer; size: float32): float32 =
   ## Scaled line height (ascent - descent + lineGap) at `size` px.
+  ensureRuntime()
   if h == nil: return 0'f32
   try: fontOf(h).f.lineHeight(size)
   except CatchableError, Defect: 0'f32
 
 proc ugly_font_free(h: pointer) =
+  ensureRuntime()
   if h == nil: return
   swallowAbiFaults: GC_unref(fontOf(h))
 
 proc ugly_family_new(font: pointer): pointer =
+  ensureRuntime()
   if font == nil: return nil
   try:
     let h = FamilyHandle(family: fontFamily(fontOf(font).f))
@@ -229,6 +290,7 @@ proc ugly_family_new(font: pointer): pointer =
     nil
 
 proc ugly_family_add(h, font: pointer): cint =
+  ensureRuntime()
   if h == nil or font == nil: return UGLY_ERR_FORMAT
   try:
     familyOf(h).family.faces.add fontOf(font).f
@@ -237,9 +299,11 @@ proc ugly_family_add(h, font: pointer): cint =
     UGLY_ERR_MEM
 
 proc ugly_family_count(h: pointer): csize_t =
+  ensureRuntime()
   if h == nil: 0 else: csize_t(familyOf(h).family.faces.len)
 
 proc ugly_family_free(h: pointer) =
+  ensureRuntime()
   if h == nil: return
   swallowAbiFaults: GC_unref(familyOf(h))
 
@@ -248,6 +312,7 @@ proc ugly_family_free(h: pointer) =
 proc ugly_image_new(width, height: cint): pointer =
   ## A zeroed (transparent) RGBA8 image. NULL on bad dimensions or allocation
   ## failure.
+  ensureRuntime()
   if width <= 0 or height <= 0: return nil
   try:
     let img = uimg.newImage[uint8](int(width), int(height), uimg.csRgba)
@@ -258,14 +323,17 @@ proc ugly_image_new(width, height: cint): pointer =
     nil
 
 proc ugly_image_width(h: pointer): cint =
+  ensureRuntime()
   if h == nil: return 0
   cint(imgOf(h).img.width)
 
 proc ugly_image_height(h: pointer): cint =
+  ensureRuntime()
   if h == nil: return 0
   cint(imgOf(h).img.height)
 
 proc ugly_image_channels(h: pointer): cint =
+  ensureRuntime()
   if h == nil: return 0
   cint(imgOf(h).img.channels)
 
@@ -274,6 +342,7 @@ proc ugly_image_pixels(h: pointer; outPtr: ptr ptr uint8;
   ## Borrow the pixel buffer (no copy). `*outPtr` is valid until `h` is freed;
   ## do NOT free it with `ugly_buffer_free`. Empty image -> `*outPtr = NULL`,
   ## `*outLen = 0`, `UGLY_OK`.
+  ensureRuntime()
   if outPtr == nil or outLen == nil: return UGLY_ERR_FORMAT
   outPtr[] = nil
   outLen[] = 0
@@ -288,6 +357,7 @@ proc ugly_image_encode_png(h: pointer; outData: ptr ptr uint8;
     outLen: ptr csize_t): cint =
   ## Encode the image as PNG. On success allocates `*outData` (free with
   ## `ugly_buffer_free`) and sets `*outLen`.
+  ensureRuntime()
   if outData == nil or outLen == nil: return UGLY_ERR_FORMAT
   outData[] = nil
   outLen[] = 0
@@ -300,6 +370,7 @@ proc ugly_image_encode_png(h: pointer; outData: ptr ptr uint8;
     UGLY_ERR_FORMAT
 
 proc ugly_image_free(h: pointer) =
+  ensureRuntime()
   if h == nil: return
   swallowAbiFaults: GC_unref(imgOf(h))
 
@@ -308,6 +379,7 @@ proc ugly_image_free(h: pointer) =
 proc ugly_color_parse(s: cstring): pointer =
   ## Parse a CSS Color 4 string (hex/rgb/oklch/...). NULL on a nil string or
   ## unparseable input. Never raises (parseColor returns a Result).
+  ensureRuntime()
   if s == nil: return nil
   let r = parseColor($s)
   if not r.isOk: return nil
@@ -321,6 +393,7 @@ proc ugly_color_parse(s: cstring): pointer =
 proc ugly_color_rgba(r, g, b, a: float32): pointer =
   ## An sRGB color from straight-alpha floats in [0, 1]. NULL on an
   ## out-of-gamut / non-finite input.
+  ensureRuntime()
   let cr = color(tagSrgb, r, g, b, a)
   if not cr.isOk: return nil
   try:
@@ -331,6 +404,7 @@ proc ugly_color_rgba(r, g, b, a: float32): pointer =
     nil
 
 proc ugly_color_free(h: pointer) =
+  ensureRuntime()
   if h == nil: return
   swallowAbiFaults: GC_unref(colorOf(h))
 
@@ -339,6 +413,7 @@ proc ugly_color_free(h: pointer) =
 proc ugly_text_width(h: pointer; text: cstring; size: float32): float32 =
   ## Total advance width of `text` at `size` px (including pair kerning). 0 on a nil handle
   ## or text.
+  ensureRuntime()
   if h == nil or text == nil: return 0'f32
   try: textWidth(fontOf(h).f, $text, size)
   except CatchableError, Defect: 0'f32
@@ -347,6 +422,7 @@ proc ugly_layout_new(font: pointer; text: cstring; size, maxWidth: float32;
     align, direction: cint): pointer =
   ## Shape and lay out UTF-8 text. NULL denotes invalid input or unsupported
   ## enum values.
+  ensureRuntime()
   if font == nil or text == nil: return nil
   if align < 0 or align > cint(ord(high(TextAlign))): return nil
   if direction < 0 or direction > cint(ord(high(TextDirection))): return nil
@@ -362,6 +438,7 @@ proc ugly_layout_new(font: pointer; text: cstring; size, maxWidth: float32;
 proc ugly_layout_new_with_options(font: pointer; text: cstring;
     size, maxWidth: float32; align, direction: cint;
     options: ptr UglyTextOptions): pointer =
+  ensureRuntime()
   if font == nil or text == nil: return nil
   if align < 0 or align > cint(ord(high(TextAlign))): return nil
   if direction < 0 or direction > cint(ord(high(TextDirection))): return nil
@@ -377,6 +454,7 @@ proc ugly_layout_new_with_options(font: pointer; text: cstring;
 
 proc ugly_layout_new_family(family: pointer; text: cstring;
     size, maxWidth: float32; align, direction: cint): pointer =
+  ensureRuntime()
   if family == nil or text == nil: return nil
   if align < 0 or align > cint(ord(high(TextAlign))): return nil
   if direction < 0 or direction > cint(ord(high(TextDirection))): return nil
@@ -393,6 +471,7 @@ proc ugly_layout_new_family(family: pointer; text: cstring;
 proc ugly_layout_new_family_with_options(family: pointer; text: cstring;
     size, maxWidth: float32; align, direction: cint;
     options: ptr UglyTextOptions): pointer =
+  ensureRuntime()
   if family == nil or text == nil: return nil
   if align < 0 or align > cint(ord(high(TextAlign))): return nil
   if direction < 0 or direction > cint(ord(high(TextDirection))): return nil
@@ -408,21 +487,26 @@ proc ugly_layout_new_family_with_options(family: pointer; text: cstring;
     nil
 
 proc ugly_layout_width(h: pointer): float32 =
+  ensureRuntime()
   if h == nil: 0'f32 else: layoutOf(h).layout.width
 
 proc ugly_layout_height(h: pointer): float32 =
+  ensureRuntime()
   if h == nil: 0'f32 else: layoutOf(h).layout.height
 
 proc ugly_layout_line_count(h: pointer): csize_t =
+  ensureRuntime()
   if h == nil: 0 else: csize_t(layoutOf(h).layout.lines.len)
 
 proc ugly_layout_glyph_count(h: pointer): csize_t =
+  ensureRuntime()
   if h == nil: return 0
   for line in layoutOf(h).layout.lines:
     result += csize_t(line.run.placements.len)
 
 proc ugly_layout_bounds(h: pointer; ink: cint;
     outBounds: ptr UglyBounds): cint =
+  ensureRuntime()
   if h == nil or outBounds == nil: return UGLY_ERR_FORMAT
   outBounds[] = toC(if ink != 0: layoutOf(h).layout.inkBounds
     else: layoutOf(h).layout.typographicBounds)
@@ -430,6 +514,7 @@ proc ugly_layout_bounds(h: pointer; ink: cint;
 
 proc ugly_layout_glyph(h: pointer; index: csize_t;
     outInfo: ptr UglyGlyphInfo): cint =
+  ensureRuntime()
   if h == nil or outInfo == nil: return UGLY_ERR_FORMAT
   var current: csize_t
   for lineIndex, line in layoutOf(h).layout.lines:
@@ -451,6 +536,7 @@ proc ugly_layout_glyph(h: pointer; index: csize_t;
 
 proc ugly_layout_line(h: pointer; index: csize_t;
     outInfo: ptr UglyLineInfo): cint =
+  ensureRuntime()
   if h == nil or outInfo == nil or index >= layoutOf(
       h).layout.lines.len.csize_t:
     return UGLY_ERR_FORMAT
@@ -462,10 +548,12 @@ proc ugly_layout_line(h: pointer; index: csize_t;
   UGLY_OK
 
 proc ugly_layout_free(h: pointer) =
+  ensureRuntime()
   if h == nil: return
   swallowAbiFaults: GC_unref(layoutOf(h))
 
 proc ugly_render_layout(img, layout, color: pointer; x, y: float32): cint =
+  ensureRuntime()
   if img == nil or layout == nil or color == nil: return UGLY_ERR_FORMAT
   try:
     imgOf(img).img.renderLayout(layoutOf(layout).layout, colorOf(color).color,
@@ -476,6 +564,7 @@ proc ugly_render_layout(img, layout, color: pointer; x, y: float32): cint =
 
 proc ugly_atlas_new(font: pointer; codepoints: ptr uint32; count: csize_t;
     size: float32; width, padding: cint): pointer =
+  ensureRuntime()
   if font == nil or (count > 0 and codepoints == nil): return nil
   try:
     var cps = newSeq[int](int(count))
@@ -492,6 +581,7 @@ proc ugly_atlas_new(font: pointer; codepoints: ptr uint32; count: csize_t;
 
 proc ugly_atlas_new_family(family: pointer; codepoints: ptr uint32;
     count: csize_t; size: float32; width, padding: cint): pointer =
+  ensureRuntime()
   if family == nil or (count > 0 and codepoints == nil): return nil
   try:
     var cps = newSeq[int](int(count))
@@ -508,16 +598,20 @@ proc ugly_atlas_new_family(family: pointer; codepoints: ptr uint32;
     nil
 
 proc ugly_atlas_width(h: pointer): cint =
+  ensureRuntime()
   if h == nil: 0 else: cint(atlasOf(h).atlas.width)
 
 proc ugly_atlas_height(h: pointer): cint =
+  ensureRuntime()
   if h == nil: 0 else: cint(atlasOf(h).atlas.height)
 
 proc ugly_atlas_entry_count(h: pointer): csize_t =
+  ensureRuntime()
   if h == nil: 0 else: csize_t(atlasOf(h).atlas.entries.len)
 
 proc ugly_atlas_get_entry(h: pointer; index: csize_t;
     outEntry: ptr UglyAtlasEntry): cint =
+  ensureRuntime()
   if h == nil or outEntry == nil or index >= atlasOf(
       h).atlas.entries.len.csize_t:
     return UGLY_ERR_FORMAT
@@ -531,6 +625,7 @@ proc ugly_atlas_get_entry(h: pointer; index: csize_t;
 
 proc ugly_atlas_pixels(h: pointer; outPtr: ptr ptr uint8;
     outLen: ptr csize_t): cint =
+  ensureRuntime()
   if h == nil or outPtr == nil or outLen == nil: return UGLY_ERR_FORMAT
   let atlas = atlasOf(h)
   outLen[] = csize_t(atlas.atlas.pixels.len)
@@ -539,6 +634,7 @@ proc ugly_atlas_pixels(h: pointer; outPtr: ptr ptr uint8;
   UGLY_OK
 
 proc ugly_atlas_free(h: pointer) =
+  ensureRuntime()
   if h == nil: return
   swallowAbiFaults: GC_unref(atlasOf(h))
 
@@ -548,6 +644,7 @@ proc ugly_render_text(img: pointer; font: pointer; text: cstring;
   ## and solid-fill the combined glyph path with `color` onto `img` (RGBA8,
   ## NonZero winding). `UGLY_OK` on success, `UGLY_ERR_FORMAT` on a nil handle
   ## or text.
+  ensureRuntime()
   if img == nil or font == nil or text == nil or color == nil:
     return UGLY_ERR_FORMAT
   if size <= 0'f32: return UGLY_ERR_FORMAT
@@ -567,6 +664,7 @@ proc ugly_buffer_free(p: pointer; len: csize_t) =
   ## Free a buffer returned by `ugly_image_encode_png`. NULL is a no-op. `len`
   ## is ignored (kept for symmetry with the allocator). Do NOT use on
   ## `ugly_image_pixels`.
+  ensureRuntime()
   if p == nil: return
   swallowAbiFaults: deallocShared(p)
 
