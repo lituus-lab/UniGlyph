@@ -176,11 +176,13 @@ jobs:
           # and compiling the same source without it does not build at all.
           FONT="$PWD/tests/assets/DejaVuSans.ttf"
           test -f "$FONT"
-          CC=cc; BIN=consumer
-          if [ "$RUNNER_OS" = Windows ]; then CC=gcc; BIN=consumer.exe; fi
+          # glibc keeps libm separate, and the archive's UniColor and UniMath
+          # objects call pow, hypot and friends. Same libs as tests/c/Makefile.
+          CC=cc; BIN=consumer; MATH=-lm
+          if [ "$RUNNER_OS" = Windows ]; then CC=gcc; BIN=consumer.exe; MATH=; fi
           "$CC" -Iartifact/include -O2 -Wall -Wextra -std=c11 \
             -DTEST_FONT="\"$FONT\"" -o "$BIN" \
-            tests/c/test_uniglyph.c artifact/libUniGlyph.a -lz
+            tests/c/test_uniglyph.c artifact/libUniGlyph.a -lz $MATH
           "./$BIN"
 
   consume-wheel:
