@@ -19,7 +19,9 @@ LIB    := $(ROOT)/libUniGlyph.a
 ifeq ($(OS),Windows_NT)
   LIBS := -lz
 else
-  LIBS := -lz
+  # glibc keeps libm separate, and the archive's UniColor and UniMath objects
+  # call pow, hypot and friends. macOS resolves -lm through libSystem.
+  LIBS := -lz -lm
 endif
 
 ifeq ($(OS),Windows_NT)
