@@ -5,7 +5,9 @@ import os
 
 import uniglyph
 
-FONT = os.path.join(
+# The default path holds inside the checkout; a consumer running the installed
+# wheel elsewhere names the font itself.
+FONT = os.environ.get("UNIGLYPH_TEST_FONT") or os.path.join(
     os.path.dirname(__file__), "..", "..", "tests", "assets", "DejaVuSans.ttf"
 )
 

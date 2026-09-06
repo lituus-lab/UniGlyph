@@ -172,9 +172,14 @@ jobs:
           # rather than surfacing as an obscure compiler error.
           test -f artifact/include/UniGlyph.h
           test -f artifact/libUniGlyph.a
+          # The consumer loads a real font: tests/c/Makefile passes TEST_FONT,
+          # and compiling the same source without it does not build at all.
+          FONT="$PWD/tests/assets/DejaVuSans.ttf"
+          test -f "$FONT"
           CC=cc; BIN=consumer
           if [ "$RUNNER_OS" = Windows ]; then CC=gcc; BIN=consumer.exe; fi
-          "$CC" -Iartifact/include -O2 -Wall -Wextra -std=c11 -o "$BIN" \
+          "$CC" -Iartifact/include -O2 -Wall -Wextra -std=c11 \
+            -DTEST_FONT="\"$FONT\"" -o "$BIN" \
             tests/c/test_uniglyph.c artifact/libUniGlyph.a -lz
           "./$BIN"
 
@@ -210,8 +215,11 @@ jobs:
           work="$RUNNER_TEMP/wheel-check"
           mkdir -p "$work"
           cp py/tests/test_uniglyph.py "$work/"
+          # The suite resolves the font relative to its own file; away from the
+          # checkout that path leads outside the runner's work tree.
+          cp tests/assets/DejaVuSans.ttf "$work/"
           cd "$work"
-          python -m pytest -q
+          UNIGLYPH_TEST_FONT="$work/DejaVuSans.ttf" python -m pytest -q
 
   consume-sdist:
     name: Consume Python source archive
