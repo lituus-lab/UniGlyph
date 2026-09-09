@@ -12,9 +12,22 @@ session at the mercy of a native fault, and pytest captures stdout and stderr
 during collection, losing the buffer when the process dies. A child hands back
 its own output and exit status, so a crash is reported instead of swallowed.
 """
+import pathlib
 import subprocess
 import sys
 import textwrap
+
+import pytest
+
+# This module exists for the wheel job, which copies it alone into a neutral
+# directory. Inside the checkout it proves nothing the full suite does not
+# already cover, and its child processes are the one thing here that is not
+# plain library use -- so it stands aside rather than adding a shape the source
+# tree never needs. The package directory next door is what tells the two runs
+# apart: the wheel job copies this file with nothing beside it.
+if (pathlib.Path(__file__).resolve().parent.parent / "uniglyph").is_dir():
+    pytest.skip("source checkout: the full suite covers this",
+                allow_module_level=True)
 
 
 def run_in_child(body):
