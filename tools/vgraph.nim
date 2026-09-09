@@ -109,17 +109,65 @@ proc packageName(spec: string): string =
     result = result.split(sep)[0]
   result = result.split({'/', '\\'})[^1]
 
-func withoutComment(line: string): string =
-  ## The line up to a `#` outside a string. The `#` of a quoted branch
-  ## specification stays.
+func nimIdentEq(a, b: string): bool =
+  ## Nim identifier equality: the first character is case sensitive, the rest
+  ## ignores case and underscores. `reQuires` and `requ_ires` call `requires`.
+  if a.len == 0 or b.len == 0: return a.len == b.len
+  if a[0] != b[0]: return false
+  var i, j = 1
+  while true:
+    while i < a.len and a[i] == '_': inc i
+    while j < b.len and b[j] == '_': inc j
+    if i >= a.len or j >= b.len: return i >= a.len and j >= b.len
+    if a[i].toLowerAscii != b[j].toLowerAscii: return false
+    inc i
+    inc j
+
+func leadingIdent(line: string): string =
+  ## The identifier a line opens with, empty when it opens with anything else.
+  ## Bytes above ASCII are part of it: Nim accepts `requires\u00e9` as an
+  ## identifier of its own, and stopping early would read it as the directive.
+  for ch in line:
+    if ch in IdentChars or ch.ord >= 0x80: result.add ch
+    else: break
+
+func stripComments(line: string, depth: var int): string =
+  ## The code of a line, with comments removed. `depth` carries `#[ ]#` nesting
+  ## across lines, since a block comment may open on one and close on another.
+  ## The `#` of a quoted branch specification is not a comment.
   var inString = false
-  for at, ch in line:
-    case ch
-    of '"': inString = not inString
+  var at = 0
+  while at < line.len:
+    if depth > 0:
+      if at + 1 < line.len and line[at] == ']' and line[at + 1] == '#':
+        dec depth
+        inc at, 2
+      elif at + 1 < line.len and line[at] == '#' and line[at + 1] == '[':
+        inc depth
+        inc at, 2
+      else:
+        inc at
+      continue
+    case line[at]
+    of '"':
+      inString = not inString
+      result.add line[at]
     of '#':
-      if not inString: return line[0 ..< at]
-    else: discard
-  line
+      if inString:
+        result.add line[at]
+      elif at + 1 < line.len and line[at + 1] == '[':
+        inc depth
+        inc at, 2
+        continue
+      else:
+        return result
+    else: result.add line[at]
+    inc at
+
+func withoutComment(line: string): string =
+  ## The line up to a comment, for a line that opens none across others.
+  var depth = 0
+  stripComments(line, depth)
 
 func requiredOn(line: string): seq[string] =
   ## Package names a single `requires` line declares. Nimble accepts several
@@ -128,9 +176,9 @@ func requiredOn(line: string): seq[string] =
   ## [engines] allowlist. A trailing comment is not read, while the `#` of a
   ## quoted branch specification is.
   let trimmed = line.strip
-  if not trimmed.startsWith("requires"): return
-  # The directive, not a name starting with it: requiresExtra is not one.
-  if trimmed.len > 8 and trimmed[8] in IdentChars: return
+  # The directive itself, by Nim's own identifier rules; requiresExtra is a
+  # different identifier and stays out.
+  if not nimIdentEq(leadingIdent(trimmed), "requires"): return
   let body = withoutComment(trimmed)
   var index = body.find('"')
   while index >= 0:
@@ -146,14 +194,15 @@ func requiredIn(lines: openArray[string]): seq[string] =
   ## Package names a manifest declares. A directive continued after a comma is
   ## joined before it is read, since Nim allows the argument list to span lines.
   var pending = ""
+  var depth = 0
   for raw in lines:
-    let body = withoutComment(raw).strip
+    let body = stripComments(raw, depth).strip
     if pending.len > 0:
       # A comment-only line leaves nothing: appending it would drop the comma
       # the continuation is recognised by.
       if body.len == 0: continue
       pending.add " " & body
-    elif body.startsWith("requires"):
+    elif nimIdentEq(leadingIdent(body), "requires"):
       pending = body
     else:
       continue
@@ -215,6 +264,10 @@ proc checkParser() =
     """requires "a", "b"""": @["a", "b"],
     """requires "UniVector" # "UniPlot"""": @["UniVector"],
     """requiresExtra "UniVector"""": newSeq[string](),
+    """reQuires "UniA"""": @["UniA"],
+    """requ_ires "UniB"""": @["UniB"],
+    """Requires "UniC"""": newSeq[string](),
+    "requires\u00e9 \"UniD\"": newSeq[string](),
     """requires "https://github.com/lbartoletti/NimContracts#main"""":
     @["NimContracts"],
   }
@@ -230,6 +283,8 @@ proc checkParser() =
     (@["requires \"a\", # note", "         \"b\""], @["a", "b"]),
     (@["requires \"a\",", "  # a note on its own line", "  \"UniUndeclared\""],
      @["a", "UniUndeclared"]),
+    (@["requires \"a\", #[ a block comment", "  still inside it",
+       "]# \"UniUndeclared\""], @["a", "UniUndeclared"]),
     (@["requires \"a\"", "requires \"b\""], @["a", "b"]),
   ]
   for (lines, want) in manifestCases:
