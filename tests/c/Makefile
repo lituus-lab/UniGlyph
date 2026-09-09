@@ -9,9 +9,13 @@ ifeq ($(origin CC),default)
   endif
 endif
 
+# ROOT is where the header and archive live; the artifact-consumption job
+# points it at the downloaded zip. The font is not in that zip, so it keeps its
+# own path into the checkout -- overriding one must not move the other.
 ROOT   := $(CURDIR)/../..
+CHECKOUT := $(CURDIR)/../..
 CFLAGS := -I$(ROOT)/include -O2 -Wall -Wextra -std=c11 \
-          -DTEST_FONT=\"$(ROOT)/tests/assets/DejaVuSans.ttf\"
+          -DTEST_FONT=\"$(CHECKOUT)/tests/assets/DejaVuSans.ttf\"
 LIB    := $(ROOT)/libUniGlyph.a
 # libUniGlyph.a references uncompress/compress2 (UniImage PNG/DEFLATE codecs
 # via libz FFI); ugly_image_encode_png pulls them in, so a C consumer must
