@@ -322,7 +322,7 @@ cdef class FontFamily:
             ugly_family_free(self._h)
             self._h = NULL
 
-    def __init__(self, Font first, *fallback):
+    def __init__(self, Font first not None, *fallback):
         self._h = ugly_family_new(first._h)
         if self._h == NULL:
             raise MemoryError("failed to allocate font family")
@@ -332,7 +332,7 @@ cdef class FontFamily:
             if ugly_family_add(self._h, (<Font>face)._h) != 0:
                 raise MemoryError("failed to extend font family")
 
-    def add(self, Font font):
+    def add(self, Font font not None):
         if ugly_family_add(self._h, font._h) != 0:
             raise MemoryError("failed to extend font family")
 
@@ -472,7 +472,8 @@ cdef class Layout:
                                           info.ink_bounds.y_max)})
         return result
 
-    def render_to(self, Image image, Color color, float x=0.0, float y=0.0):
+    def render_to(self, Image image not None, Color color not None,
+                  float x=0.0, float y=0.0):
         cdef int rc = ugly_render_layout(image._h, self._h, color._h, x, y)
         if rc != 0:
             raise ValueError(f"render layout failed: {strerror(rc)}")
@@ -553,8 +554,8 @@ cdef class Atlas:
             return b""
         return bytes(<const unsigned char[:out_len]>out)
 
-def render_text(Image img, Font font, str text, float size,
-                float x, float y, Color color):
+def render_text(Image img not None, Font font not None, str text,
+                float size, float x, float y, Color color not None):
     """Lay out `text` single-line LTR at `size` px with baseline origin (x, y)
     and solid-fill the combined glyph path with `color` onto `img` (RGBA8)."""
     cdef bytes b = text.encode("utf-8")
