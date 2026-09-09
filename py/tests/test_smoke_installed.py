@@ -49,9 +49,22 @@ def test_the_package_imports_at_all():
         faulthandler.enable()
         import uniglyph
         print("imported")
+        print(uniglyph.__file__)
     """)
     assert done.returncode == 0, describe(done)
     assert "imported" in done.stdout, describe(done)
+
+
+def test_the_import_resolves_to_an_installed_package():
+    # Without this the module could pass against py/uniglyph next door and
+    # prove nothing about the wheel. The checkout has no site-packages.
+    done = run_in_child("""
+        import uniglyph
+        print(uniglyph.__file__)
+    """)
+    assert done.returncode == 0, describe(done)
+    where = done.stdout.strip()
+    assert "site-packages" in where or "dist-packages" in where, describe(done)
 
 
 def test_the_engine_answers_through_the_bundled_library():
