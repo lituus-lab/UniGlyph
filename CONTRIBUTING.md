@@ -42,9 +42,18 @@ whole PR into one commit whose subject is the title.
 ## Workflow
 
 1. Branch from `main`, one logical change per commit.
-2. Pass the gates: `nimble testAll`, `nimble ctest`, `nimble cexample`,
-   `nimble example`, `nimble pyTest`, `nimble coverage`, `nimble docs`,
-   `nimble lint`, `nimble checkVGraph`.
+2. Pass the gates, through the wrapper and never bare:
+
+   ```bash
+   tools/hooks/gated.sh testAll
+   tools/hooks/gated.sh pyTest
+   ```
+
+   The wrapper builds the gate and rebuilds it whenever `tools/gate.nim` is
+   newer. `nimble testAll` on its own exits 0 even when a task inside it
+   failed; that is the whole reason the gate exists. The same holds for
+   `example`, `coverage`, `docs`, `lint` and `checkVGraph`: run each through
+   the wrapper.
 3. Open a PR; CI runs the 3-OS Nim matrix + C ABI + Python.
 
 ## Pre-commit
