@@ -125,3 +125,15 @@ def test_atlas_pixels_and_entries():
     assert atlas.height > 0
     assert len(atlas.entries()) == 2
     assert len(atlas.pixels()) == atlas.width * atlas.height * 4
+
+
+def test_color_has_no_public_constructor():
+    import pytest
+
+    # Color used to accept any arguments and hand back a nil handle, so the
+    # mistake surfaced later as a generic "bad argument" from render_text.
+    for args in [(), (255, 128, 0), (255, 128, 0, 255), ("red",)]:
+        with pytest.raises(TypeError):
+            uniglyph.Color(*args)
+    assert uniglyph.Color.parse("#ff8800").__class__ is uniglyph.Color
+    assert uniglyph.Color.rgba(1.0, 0.5, 0.0).__class__ is uniglyph.Color
