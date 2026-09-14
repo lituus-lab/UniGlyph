@@ -46,10 +46,12 @@ THE SOFTWARE.
 
 ----------------------------------------------------------------------------
 
-This distribution bundles DejaVu Sans (tests/assets/DejaVuSans.ttf) for
-rendering tests. The upstream DejaVu license terms follow verbatim (DejaVu Sans
-is derived from Bitstream Vera, with Arev-derived glyphs contributed by
-Tavmjong Bah; the DejaVu additions are in the public domain):
+This distribution bundles DejaVu Sans twice: tests/assets/DejaVuSans.ttf for
+the rendering tests, and the same file under py/uniglyph/data/ so it travels
+inside the published wheel, where the quickstart notebook renders with it. The
+upstream DejaVu license terms follow verbatim (DejaVu Sans is derived from
+Bitstream Vera, with Arev-derived glyphs contributed by Tavmjong Bah; the
+DejaVu additions are in the public domain):
 
 Fonts are (c) Bitstream (see below). DejaVu changes are in public domain.
 Glyphs imported from Arev fonts are (c) Tavmjong Bah (see below)

@@ -94,8 +94,11 @@ setup(
     ext_modules=cythonize([ext], language_level=3),
     cmdclass={"build_ext": build_ext_with_lib, "sdist": sdist_with_header},
     include_package_data=True,
-    package_data={"uniglyph": [LIB_NAME]
-                  if BUNDLED and "sdist" not in sys.argv else []},
+    # data/: the font the quickstart notebook renders. It reads it through
+    # importlib.resources, so the notebook runs wherever the wheel is installed
+    # rather than only inside a checkout -- which is also how CI executes it.
+    package_data={"uniglyph": ["data/*"] + ([LIB_NAME]
+                  if BUNDLED and "sdist" not in sys.argv else [])},
     exclude_package_data={"uniglyph": ["_core.c"]},
     zip_safe=False,
 )
