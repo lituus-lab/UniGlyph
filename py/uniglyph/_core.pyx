@@ -357,6 +357,12 @@ cdef class Color:
         r._h = h
         return r
 
+    def __init__(self, *args, **kwargs):
+        # Without this, `Color(255, 128, 0)` succeeds and yields an object whose
+        # handle is nil, and the mistake only surfaces later as a generic "bad
+        # argument / nil handle" from whatever consumed it.
+        raise TypeError("Color values are created by Color.rgba() or Color.parse()")
+
     @staticmethod
     def parse(str s):
         """Parse a CSS Color 4 string (hex/rgb/oklch/...)."""
