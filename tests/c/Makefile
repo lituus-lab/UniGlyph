@@ -14,8 +14,11 @@ endif
 # own path into the checkout -- overriding one must not move the other.
 ROOT   := $(CURDIR)/../..
 CHECKOUT := $(CURDIR)/../..
+# EXTRA_CFLAGS is a hook, not a knob: `nimble coverage` passes --coverage
+# through it. Replacing CFLAGS from the command line would drop the include
+# path, and here or in a sibling the -D the test needs.
 CFLAGS := -I$(ROOT)/include -O2 -Wall -Wextra -std=c11 \
-          -DTEST_FONT=\"$(CHECKOUT)/tests/assets/DejaVuSans.ttf\"
+          -DTEST_FONT=\"$(CHECKOUT)/tests/assets/DejaVuSans.ttf\" $(EXTRA_CFLAGS)
 LIB    := $(ROOT)/libUniGlyph.a
 # libUniGlyph.a references uncompress/compress2 (UniImage PNG/DEFLATE codecs
 # via libz FFI); ugly_image_encode_png pulls them in, so a C consumer must
